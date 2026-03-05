@@ -39,8 +39,8 @@ const AGENT_EMOJI: Record<string, string> = {
   Oracle: "👁️",
 };
 
-const PRIORITY_ORDER: Record<string, number> = { high: 0, medium: 1, low: 2 };
-const PRIORITY_BADGE: Record<string, string> = { high: "🔴", medium: "🟡", low: "🟢" };
+const PRIORITY_ORDER: Record<string, number> = { high: 0, medium: 1, low: 2, red: 0, yellow: 1, green: 2 };
+const PRIORITY_BADGE: Record<string, string> = { high: "🔴", medium: "🟡", low: "🟢", red: "🔴", yellow: "🟡", green: "🟢" };
 
 function timeAgo(date: string) {
   const ms = Date.now() - new Date(date).getTime();
@@ -119,9 +119,19 @@ export default function Home() {
     }, { onConflict: "flagged_email_id" });
   }
 
-  function handleSurfaceMore() {
+  async function handleSurfaceMore() {
     setScanning(true);
-    setTimeout(() => setScanning(false), 3000);
+    try {
+      const res = await fetch("/api/scan", { method: "POST" });
+      const data = await res.json();
+      if (data.success) {
+        await fetchEmails();
+      }
+    } catch (err) {
+      console.error("Scan failed:", err);
+    } finally {
+      setScanning(false);
+    }
   }
 
   // ── Filtering & Sorting ──
