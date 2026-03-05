@@ -7,6 +7,7 @@ import { supabase } from "../lib/supabase";
 interface AgentTag {
   agent: string;
   reason: string;
+  category?: string;
 }
 
 interface FlaggedEmail {
@@ -14,12 +15,11 @@ interface FlaggedEmail {
   gmail_id: string;
   subject: string;
   sender: string;
-  sender_email: string;
   sender_domain: string;
-  category: string;
-  priority: string; // high, medium, low
+  priority: string; // red, yellow, green
   agents: AgentTag[];
-  flagged_at: string;
+  received_at: string;
+  created_at: string;
   status: string;
 }
 
@@ -83,7 +83,7 @@ export default function Home() {
       .from("flagged_emails")
       .select("*")
       .eq("status", "active")
-      .order("flagged_at", { ascending: false });
+      .order("received_at", { ascending: false });
 
     if (!error && data) {
       setEmails(data as FlaggedEmail[]);
@@ -114,7 +114,7 @@ export default function Home() {
       subject: email.subject,
       sender: email.sender,
       sender_domain: email.sender_domain,
-      category: email.category,
+      category: email.agents?.[0]?.category || "General",
       created_at: new Date().toISOString(),
     }, { onConflict: "flagged_email_id" });
   }
@@ -122,13 +122,7 @@ export default function Home() {
   async function handleSurfaceMore() {
     setScanning(true);
     try {
-      const res = await fetch("/api/scan", { method: "POST" });
-      const data = await res.json();
-      if (data.success) {
-        await fetchEmails();
-      }
-    } catch (err) {
-      console.error("Scan failed:", err);
+      await fetchEmails();
     } finally {
       setScanning(false);
     }
@@ -149,10 +143,10 @@ export default function Home() {
       if (sortBy === "priority") {
         const pd = (PRIORITY_ORDER[a.priority] ?? 1) - (PRIORITY_ORDER[b.priority] ?? 1);
         if (pd !== 0) return pd;
-        return new Date(b.flagged_at).getTime() - new Date(a.flagged_at).getTime();
+        return new Date(b.received_at).getTime() - new Date(a.received_at).getTime();
       }
-      if (sortBy === "newest") return new Date(b.flagged_at).getTime() - new Date(a.flagged_at).getTime();
-      return new Date(a.flagged_at).getTime() - new Date(b.flagged_at).getTime();
+      if (sortBy === "newest") return new Date(b.received_at).getTime() - new Date(a.received_at).getTime();
+      return new Date(a.received_at).getTime() - new Date(b.received_at).getTime();
     });
     return list;
   }, [emails, agentFilter, ratingFilter, sortBy, ratings]);
@@ -337,7 +331,7 @@ function EmailCard({
             <span className="font-bold text-lg truncate">{email.subject}</span>
           </div>
           <div className="text-text-muted text-base">
-            {email.sender} · <span className="text-sm">{email.sender_email}</span>
+            {email.sender} · <span className="text-sm">{email.sender}</span>
           </div>
           <div className="mt-2 flex flex-wrap gap-2">
             {(email.agents || []).map((a, i) => (
@@ -348,7 +342,7 @@ function EmailCard({
           </div>
         </div>
         <div className="text-right shrink-0">
-          <div className={`text-sm ${ageColor(email.flagged_at)}`}>{timeAgo(email.flagged_at)}</div>
+          <div className={`text-sm ${ageColor(email.received_at || email.created_at)}`}>{timeAgo(email.received_at || email.created_at)}</div>
         </div>
       </div>
 
