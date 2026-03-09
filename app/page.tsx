@@ -128,6 +128,25 @@ export default function Home() {
     }
   }
 
+  async function handleRunScan() {
+    setScanning(true);
+    try {
+      const res = await fetch("/api/scan", { method: "POST" });
+      const data = await res.json();
+      if (data.success) {
+        // Refresh emails after scan completes
+        await fetchEmails();
+        setLastScan(new Date().toLocaleTimeString() + " (live scan)");
+      } else {
+        console.error("Scan failed:", data.error);
+      }
+    } catch (e) {
+      console.error("Scan error:", e);
+    } finally {
+      setScanning(false);
+    }
+  }
+
   // ── Filtering & Sorting ──
   const filtered = useMemo(() => {
     let list = [...emails];
@@ -176,12 +195,24 @@ export default function Home() {
       </header>
 
       {/* Stats Bar */}
-      <div className="glass p-4 mb-6 flex flex-wrap justify-center gap-6 text-lg">
+      <div className="glass p-4 mb-6 flex flex-wrap justify-center items-center gap-6 text-lg">
         <span>📧 {emails.length} surfaced</span>
         <span>⭐ {greatCount} Great</span>
         <span>👍 {okCount} OK</span>
         <span>👎 {badCount} Bad</span>
         <span className="text-cyan">{unreviewedCount} Unreviewed</span>
+        <button
+          onClick={handleRunScan}
+          disabled={scanning}
+          className={`px-5 py-2 rounded-xl font-bold transition-all neon-border ${
+            scanning
+              ? "pulse-scan text-cyan bg-cyan/10 cursor-wait"
+              : "bg-cyan/20 text-cyan hover:bg-cyan/30 hover:scale-105 active:scale-95"
+          }`}
+          style={{ fontFamily: "Orbitron, sans-serif", fontSize: "0.85rem", letterSpacing: "0.1em" }}
+        >
+          {scanning ? "⚡ SCANNING..." : "⚡ RUN SCAN NOW"}
+        </button>
       </div>
 
       {/* Filter Bar */}
